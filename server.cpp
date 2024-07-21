@@ -77,7 +77,8 @@ void doHandler(int client_sock, struct sockaddr_in client_addr, int id) {
         cout << buf << endl;
         for (int i = 0;i < g_online_total;i++) {
                 if (i == id) {
-                        char temp_buf[128];
+                        continue;
+			char temp_buf[128];
                         int temp_len = sprintf(temp_buf, "Goodbye");
                         send(client_sock, temp_buf, temp_len, 0);
                 }
