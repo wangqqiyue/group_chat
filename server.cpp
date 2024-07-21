@@ -70,7 +70,7 @@ void doHandler(int client_sock, struct sockaddr_in client_addr, int id) {
                                 continue;
                         }
                         if (g_users[i].online) {
-                                send(g_users[i].user_sock, g_buf[i], strlen(g_buf[i]), 0);
+                                send(g_users[i].user_sock, g_buf[id], strlen(g_buf[id]), 0);
                         }
                 }
         }
