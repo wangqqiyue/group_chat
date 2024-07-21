@@ -12,27 +12,83 @@ using std::cout;
 using std::cin;
 using std::endl;
 
+char g_buf[5][1024];
+int g_online_total;
+
+struct User {
+        int user_sock;
+        struct sockaddr_in user_addr;
+        int id;
+        bool online;
+};
+struct User g_users[5];
+
+
 void doHandler(int client_sock, struct sockaddr_in client_addr, int id) {
         char buf[1024];
         int n;
         char saddr[1024];
+        int len;
+        g_users[g_online_total].user_sock = client_sock;
+        g_users[g_online_total].id = g_online_total;
+        g_users[g_online_total].online = true;
+        g_users[g_online_total].user_addr = client_addr;
+        g_online_total += 1;
 
-
-        printf("client connected:-IP:%s   -port:%d\n",
+        memset(buf, 0, 1024);
+        len = sprintf(buf, "client%d online:-IP:%s   -port:%d\n current online user=%d",
+                id,
                 inet_ntop(AF_INET, &client_addr.sin_addr.s_addr, saddr, 1024),
-                ntohs(client_addr.sin_port));
+                ntohs(client_addr.sin_port),
+                g_online_total);
+        cout << buf << endl;
+        for (int i = 0;i < g_online_total;i++) {
+                if (id == i) {
+                        char temp_buf[128];
+                        int temp_len = sprintf(temp_buf, "Welcome to chatroom! your id is:%d", id);
+                        send(client_sock, temp_buf, temp_len, 0);
+                }
+                if (g_users[i].online) {
+                        send(g_users[i].user_sock, buf, len, 0);
+                }
+        }
         fflush(stdout);
         fflush(stdin);
         while ((n = read(client_sock, buf, 1024))) {
 
-                printf("get message:%s\n", buf);
+                printf("from client%d:%s\n", id, buf);
                 if (0 == strcmp(buf, "exit")) {
                         break;
                 }
-
+                memset(g_buf[id], 0, 1024);
+                len = sprintf(g_buf[id], "from cline%d:", id);
+                memcpy(g_buf[id] + len, buf, 1024 - len);
                 memset(buf, 0, 1024);
+
+                for (int i = 0;i < g_online_total;i++) {
+                        if (i == id) {
+                                continue;
+                        }
+                        if (g_users[i].online) {
+                                send(g_users[i].user_sock, g_buf[i], strlen(g_buf[i]), 0);
+                        }
+                }
         }
-        cout << "client" << id << " disconnected." << endl;
+        memset(buf, 0, 1024);
+        len = sprintf(buf, "client%d offline. current online user:%d\n", id, g_online_total - 1);
+        cout << buf << endl;
+        for (int i = 0;i < g_online_total;i++) {
+                if (i == id) {
+                        char temp_buf[128];
+                        int temp_len = sprintf(temp_buf, "Goodbye");
+                        send(client_sock, temp_buf, temp_len, 0);
+                }
+                if (g_users[i].online) {
+                        send(g_users[i].user_sock, buf, len, 0);
+                }
+        }
+        g_users[id].online = false;
+        g_online_total -= 1;
         close(client_sock);
 }
 
@@ -48,7 +104,7 @@ int main() {
         inet_pton(AF_INET, "127.0.0.1", &dst);
         addr.sin_addr.s_addr = htonl(INADDR_ANY);
         int ret = bind(server_sock, (struct sockaddr*)&addr, sizeof(addr));
-        atexit(release);
+
         if (ret == -1) {
                 perror("bind error");
                 exit(1);
@@ -59,16 +115,20 @@ int main() {
                 perror("listen error");
                 exit(1);
         }
-        struct sockaddr_in comaddr;
-        socklen_t addrlen = sizeof(sockaddr_in);
-        client_total = 0;
+
+        //current online users number
+        g_online_total = 0;
+
+
         while (true) {
                 int comfd;
+                struct sockaddr_in comaddr;
+                socklen_t addrlen = sizeof(sockaddr_in);
                 if (comfd = accept(server_sock, (struct sockaddr*)&comaddr, &addrlen)) {
-                        thread t(doHandler, comfd, comaddr, client_total++);
+                        thread t(doHandler, comfd, comaddr, g_online_total);
                         t.detach();
-                }
 
+                }
         }
         close(server_sock);
 }
