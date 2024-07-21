@@ -36,7 +36,7 @@ void doHandler(int client_sock, struct sockaddr_in client_addr, int id) {
         g_online_total += 1;
 
         memset(buf, 0, 1024);
-        len = sprintf(buf, "client%d online:-IP:%s   -port:%d\n current online user=%d",
+        len = sprintf(buf, "client%d online:-IP:%s   -port:%d\nonline user=%d",
                 id,
                 inet_ntop(AF_INET, &client_addr.sin_addr.s_addr, saddr, 1024),
                 ntohs(client_addr.sin_port),
@@ -45,37 +45,35 @@ void doHandler(int client_sock, struct sockaddr_in client_addr, int id) {
         for (int i = 0;i < g_online_total;i++) {
                 if (id == i) {
                         char temp_buf[128];
-                        int temp_len = sprintf(temp_buf, "Welcome to chatroom! your id is:%d", id);
+                        int temp_len = sprintf(temp_buf, "Welcome to chatroom! your id is:%d\n", id);
                         send(client_sock, temp_buf, temp_len, 0);
                 }
                 if (g_users[i].online) {
                         send(g_users[i].user_sock, buf, len, 0);
                 }
         }
+        memset(buf, 0, 1024);
         fflush(stdout);
         fflush(stdin);
         while ((n = read(client_sock, buf, 1024))) {
 
-                printf("from client%d:%s\n", id, buf);
+                printf("client%d:%s\n", id, buf);
                 if (0 == strcmp(buf, "exit")) {
                         break;
                 }
                 memset(g_buf[id], 0, 1024);
-                len = sprintf(g_buf[id], "from cline%d:", id);
+                len = sprintf(g_buf[id], "cline%d:", id);
                 memcpy(g_buf[id] + len, buf, 1024 - len);
                 memset(buf, 0, 1024);
 
                 for (int i = 0;i < g_online_total;i++) {
-                        if (i == id) {
-                                continue;
-                        }
                         if (g_users[i].online) {
                                 send(g_users[i].user_sock, g_buf[id], strlen(g_buf[id]), 0);
                         }
                 }
         }
         memset(buf, 0, 1024);
-        len = sprintf(buf, "client%d offline. current online user:%d\n", id, g_online_total - 1);
+        len = sprintf(buf, "client%d offline. online user:%d\n", id, g_online_total - 1);
         cout << buf << endl;
         for (int i = 0;i < g_online_total;i++) {
                 if (i == id) {
