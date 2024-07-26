@@ -12,7 +12,9 @@ using std::cout;
 using std::cin;
 using std::endl;
 
-char g_buf[5][1024];
+#define MAX_ONLINE 10
+
+char g_buf[MAX_ONLINE][1024];
 int g_online_total;
 
 struct User {
@@ -21,7 +23,7 @@ struct User {
         int id;
         bool online;
 };
-struct User g_users[5];
+struct User g_users[MAX_ONLINE];
 
 
 void doHandler(int client_sock, struct sockaddr_in client_addr, int id) {
@@ -29,10 +31,10 @@ void doHandler(int client_sock, struct sockaddr_in client_addr, int id) {
         int n;
         char saddr[1024];
         int len;
-        g_users[g_online_total].user_sock = client_sock;
-        g_users[g_online_total].id = g_online_total;
-        g_users[g_online_total].online = true;
-        g_users[g_online_total].user_addr = client_addr;
+        g_users[id].user_sock = client_sock;
+        g_users[id].id = id;
+        g_users[id].online = true;
+        g_users[id].user_addr = client_addr;
         g_online_total += 1;
 
         memset(buf, 0, 1024);
@@ -42,7 +44,7 @@ void doHandler(int client_sock, struct sockaddr_in client_addr, int id) {
                 ntohs(client_addr.sin_port),
                 g_online_total);
         cout << buf << endl;
-        for (int i = 0;i < g_online_total;i++) {
+        for (int i = 0;i < MAX_ONLINE;i++) {
                 if (id == i) {
                         char temp_buf[128];
                         int temp_len = sprintf(temp_buf, "Welcome to chatroom! your id is:%d\n", id);
@@ -66,7 +68,7 @@ void doHandler(int client_sock, struct sockaddr_in client_addr, int id) {
                 memcpy(g_buf[id] + len, buf, 1024 - len);
                 memset(buf, 0, 1024);
 
-                for (int i = 0;i < g_online_total;i++) {
+                for (int i = 0;i < MAX_ONLINE;i++) {
                         if (g_users[i].online) {
                                 send(g_users[i].user_sock, g_buf[id], strlen(g_buf[id]), 0);
                         }
@@ -75,7 +77,7 @@ void doHandler(int client_sock, struct sockaddr_in client_addr, int id) {
         memset(buf, 0, 1024);
         len = sprintf(buf, "client%d offline. online user:%d\n", id, g_online_total - 1);
         cout << buf << endl;
-        for (int i = 0;i < g_online_total;i++) {
+        for (int i = 0;i < MAX_ONLINE;i++) {
                 if (i == id) {
                         continue;
 			char temp_buf[128];
@@ -108,7 +110,7 @@ int main() {
                 perror("bind error");
                 exit(1);
         }
-        ret = listen(server_sock, 5);//Max connections
+        ret = listen(server_sock, MAX_ONLINE);//Max connections
         if (ret == -1) {
 
                 perror("listen error");
@@ -117,6 +119,9 @@ int main() {
 
         //current online users number
         g_online_total = 0;
+	for(int i=0;i<MAX_ONLINE;i++){
+	    g_users[i].online=false;
+	}
 
 
         while (true) {
@@ -124,7 +129,15 @@ int main() {
                 struct sockaddr_in comaddr;
                 socklen_t addrlen = sizeof(sockaddr_in);
                 if (comfd = accept(server_sock, (struct sockaddr*)&comaddr, &addrlen)) {
-                        thread t(doHandler, comfd, comaddr, g_online_total);
+			int id=0;
+			//找到第一个可用的ID
+                        for(int i=0;i<MAX_ONLINE;i++){
+			    if(!g_users[i].online){
+				id=i;
+		 		break;
+			    }
+			}
+			thread t(doHandler, comfd, comaddr, id);
                         t.detach();
 
                 }
