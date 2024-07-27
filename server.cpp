@@ -64,12 +64,13 @@ void doHandler(int client_sock, struct sockaddr_in client_addr, int id) {
                         break;
                 }
                 memset(g_buf[id], 0, 1024);
-                len = sprintf(g_buf[id], "cline%d:", id);
+                //len = sprintf(g_buf[id], "client%d:", id);
+		len=0;
                 memcpy(g_buf[id] + len, buf, 1024 - len);
                 memset(buf, 0, 1024);
 
                 for (int i = 0;i < MAX_ONLINE;i++) {
-                        if (g_users[i].online) {
+                        if (g_users[i].online && i!=id) {
                                 send(g_users[i].user_sock, g_buf[id], strlen(g_buf[id]), 0);
                         }
                 }
